@@ -8,6 +8,7 @@ A blueprint for production-grade backend engineering using FastAPI. This reposit
 
 - Python 3.13+
 - [uv](https://docs.astral.sh/uv/) package manager
+- [Docker & Docker Compose](https://docs.docker.com/get-started/get-docker/)
 
 ### Quick Start
 
@@ -67,6 +68,69 @@ uv run ruff format .
 git commit --no-verify
 ```
 
+## Running the Application
+
+This project supports multiple deployment patterns depending on the development context.
+
+### Local Development
+
+Best for rapid iteration and debugging
+
+```bash
+# Start the development server
+uv run uvicorn fastapi_single_process.main:app --reload
+```
+
+- **Interactive Docs**: `http://localhost:8000/docs`
+- **Health Check**: `http://localhost:8000/api/v1/health`
+
+### Docker Compose
+
+Best for testing the containerized environment
+
+```bash
+# Start services using latest version of the image
+docker compose up --build
+
+# Stop all services
+docker compose down
+```
+
+### Production Build (Manual)
+
+Best for validating image size and security
+
+```bash
+# Build the production image
+docker build -t fastapi-single-process-latest .
+
+# Run the container
+docker run -p 8000:8000 fastapi-single-process:latest
+
+# Stop the container
+docker ps # Find the container ID
+docker stop <container-id>
+```
+
+## Docker Architecture
+
+### Multi-Stage Build Strategy
+
+The `Dockerfile` implements a two-stage process to ensure the production image is lean and secure
+
+1. **Builder Stage**: Uses `ghcr.io/astral-sh/uv` to resolve dependencies and build a Python wheel. This stage contains build tools and compilers that are **not** needed at runtime.
+2. **Runtime Stage**: A minimal`python:slim` image that only installs the pre-built wheel.
+
+### Key Benefits
+
+- **Security**: No build tools are present in the final image, reducing the attack surface.
+- Size: Final image is ~300 MB vs ~1GB+ for a standard single-stage build.
+- Non-Root User: The application runs as `appuser` rather than `root` to prevent privilege escalation.
+
+### Build Context & Optimization
+
+A strict `.dockerignore` strategy ensures that only necessary source code is sent to the Docker daemon. We exclude `.git`, `tests/`, and local dev artifacts to keep build times fast and prevent secret leakage.
+
 ## Repository Evolution
 
 We treat the repository history as a narrative, documenting each phase of the setup to maintain a clear trail of architectural intent.
@@ -114,3 +178,11 @@ This phase transforms the repository from a configuration scaffold into a functi
 - **Domain Layering**:
   - Scaffolding was created to enforce a clean separation between database, data validation, and business logic
   - The `main.py` entrypoint remains "thin", focusing solely on app initialization and mounting routers
+
+### Containerization & Orchestration
+
+Established a production-grade container strategy focused on security and build efficiency.
+
+- **Multi-Stage Dockerfile**: Implemented a builder/runtime split to produce a minimal production artifact.
+- **Docker Compose**: Provided a standardized development entry point
+- **Security Hardening**: Configured the runtime to use a non-privileged `appuser` and strictly ignored sensitive local files via `.dockeringore`

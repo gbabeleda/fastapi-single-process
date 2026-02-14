@@ -224,3 +224,22 @@ terraform.rc
 
 # Custom
 private/
+
+# Git
+.git/
+.github/
+.gitignore
+.gitattributes
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose.yaml
+
+# Other
+.pre-commit-config.yaml
+tests/
+
+# Markdown
+*.md
+!README.md
