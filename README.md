@@ -100,3 +100,17 @@ uv add --group dev pre-commit ruff
 # Initialize hooks
 uv run pre-commit install
 ```
+
+### Application Skeleton & Infrastructure
+
+This phase transforms the repository from a configuration scaffold into a functional API with a production-ready directory structure.
+
+- **Configuration**:
+  - Implemented a `Settings` singleton using `BaseSettings` for robust environment and variable validation.
+  - Used `@cache` to ensure settings are loaded once, preventing unnecessary I/O during the app lifecycle.
+- **Modular Routing & Versioning**:
+  - Adopted a versioned routing strategy `api/v1/router.py` to allow for breaking changes in the future without disrupting existing clients.
+  - Included `/health` endpoint to support infrastructure health checks.
+- **Domain Layering**:
+  - Scaffolding was created to enforce a clean separation between database, data validation, and business logic
+  - The `main.py` entrypoint remains "thin", focusing solely on app initialization and mounting routers

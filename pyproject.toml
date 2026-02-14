@@ -7,7 +7,10 @@ authors = [
     { name = "Gio Abeleda", email = "gioabeleda@gmail.com" }
 ]
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "fastapi[standard]>=0.129.0",
+    "pydantic-settings>=2.12.0",
+]
 
 [project.scripts]
 fastapi-single-process = "fastapi_single_process:main"
