@@ -3,13 +3,16 @@ name = "fastapi-single-process"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-authors = [
-    { name = "Gio Abeleda", email = "gioabeleda@gmail.com" }
-]
+authors = [{ name = "Gio Abeleda", email = "gioabeleda@gmail.com" }]
 requires-python = ">=3.13"
 dependencies = [
-    "fastapi[standard]>=0.129.0",
-    "pydantic-settings>=2.12.0",
+  "alembic>=1.18.4",
+  "asyncpg>=0.31.0",
+  "fastapi[standard]>=0.129.0",
+  "psycopg2-binary>=2.9.11",
+  "pydantic>=2.12.5",
+  "pydantic-settings>=2.12.0",
+  "sqlalchemy[asyncio]>=2.0.46",
 ]
 
 [project.scripts]
@@ -20,10 +23,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-dev = [
-    "pre-commit>=4.5.1",
-    "ruff>=0.15.1",
-]
+dev = ["pre-commit>=4.5.1", "ruff>=0.15.1"]
 
 # Ruff
 [tool.ruff]
