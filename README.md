@@ -131,6 +131,84 @@ The `Dockerfile` implements a two-stage process to ensure the production image i
 
 A strict `.dockerignore` strategy ensures that only necessary source code is sent to the Docker daemon. We exclude `.git`, `tests/`, and local dev artifacts to keep build times fast and prevent secret leakage.
 
+## Database
+
+### Setup
+
+**First time setup:**
+
+```bash
+# 1. Copy environment template
+cp .env.example .env
+
+# 2. Start database
+docker compose up -d --build
+
+# 3. Run migrations
+uv run alembic upgrade head
+```
+
+**Health check:**
+
+```bash
+curl http://localhost:8000/api/v1/health
+# {"status":"healthy","database":"connected","last_check":"2026-02-18T..."}
+```
+
+### Daily Workflow
+
+**Creating a new model:**
+
+1. Add model to `src/invested_fastapi/db/models/`
+2. Re-export in `src/invested_fastapi/db/models/__init__.py`
+3. Generate migration:
+
+```bash
+   uv run alembic revision --autogenerate -m "add user table"
+```
+
+4. Review the generated file in `alembic/versions/`
+5. Apply migration:
+
+```bash
+   uv run alembic upgrade head
+```
+
+**Common commands:**
+
+```bash
+# Check current migration
+uv run alembic current
+
+# View migration history
+uv run alembic history
+
+# Rollback one migration
+uv run alembic downgrade -1
+
+# Reset database (WARNING: deletes all data)
+docker compose down -v
+docker compose up postgres -d
+uv run alembic upgrade head
+```
+
+### Troubleshooting
+
+**"Connection refused" error:**
+
+- Ensure postgres is running: `docker compose ps`
+- Check `APP_ENVIRONMENT=docker` is set in `docker-compose.yaml`
+
+**"Table does not exist" error:**
+
+- Run migrations: `uv run alembic upgrade head`
+- Check current state: `uv run alembic current`
+
+**Migration conflicts:**
+
+- Check pending migrations: `uv run alembic history`
+- Coordinate with team before running `downgrade`
+
 ## Repository Evolution
 
 We treat the repository history as a narrative, documenting each phase of the setup to maintain a clear trail of architectural intent.
@@ -186,3 +264,55 @@ Established a production-grade container strategy focused on security and build 
 - **Multi-Stage Dockerfile**: Implemented a builder/runtime split to produce a minimal production artifact.
 - **Docker Compose**: Provided a standardized development entry point
 - **Security Hardening**: Configured the runtime to use a non-privileged `appuser` and strictly ignored sensitive local files via `.dockeringore`
+
+### Database Layer
+
+This project uses async SQLAlchemy 2.0 with Alembic migrations, configured entirely through `pyproject.toml` following modern Python packaging standards (PEP 621).
+
+**Key Features:**
+
+- Async-first architecture for optimal FastAPI concurrency
+- Timezone-aware datetime fields by default
+- Environment-aware database URL handling (Docker vs host execution)
+- Connection pooling with configurable parameters
+- Pure `pyproject.toml` configuration (no `alembic.ini`)
+
+#### Environment-Aware Configuration
+
+The database URL automatically adjusts based on execution context:
+
+| Environment  | Database URL     | Use Case                           |
+| ------------ | ---------------- | ---------------------------------- |
+| `local`      | `localhost:5445` | Running Alembic migrations on host |
+| `docker`     | `postgres:5432`  | FastAPI app in container           |
+| `production` | `postgres:5432`  | Production deployment              |
+
+**How it works:**
+
+The `adjust_db_url()` model validator in `config.py` detects the execution environment and modifies the connection URL accordingly. This allows the same configuration to work seamlessly across different contexts without manual URL changes.
+
+**Port mapping:** Docker Compose maps `5445:5432` so host machines can access the containerized database at `localhost:5445` while containers use internal networking at `postgres:5432`.
+
+#### Why pyproject.toml Over alembic.ini?
+
+**Modern Python packaging (PEP 621)** consolidates all project configuration in `pyproject.toml`. Using `alembic.ini` scatters configuration across files and requires maintaining multiple sources of truth.
+
+**Benefits:**
+
+- Single configuration file for the entire project
+- Version control is simpler (one file to track)
+- No confusion about which config file to edit
+- Follows Python ecosystem direction
+
+**Trade-off:** Slightly less common (most Alembic tutorials use `alembic.ini`), but the pattern is well-documented and future-proof.
+
+#### Why Environment-Based URL Adjustment?
+
+**The problem:** Docker service names (`postgres:5432`) only resolve inside containers. Host machines can't use them directly.
+
+**The solution:** Detect execution context and adjust URLs automatically:
+
+- Host machine (running Alembic): Use `localhost:5445`
+- Docker container (running app): Use `postgres:5432`
+
+**Alternative considered:** Maintain separate config files for Docker vs host. **Rejected because:** Manual switching is error-prone and violates DRY principles.
