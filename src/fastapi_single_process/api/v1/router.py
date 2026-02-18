@@ -9,14 +9,41 @@ Example future structure:
     v1_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 """
 
-from fastapi import APIRouter
+from typing import Annotated
+
+from fastapi import APIRouter, Depends
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from fastapi_single_process.db.models import HealthCheck
+from fastapi_single_process.db.session import get_db_session
 
 v1_router = APIRouter()
 
 
 @v1_router.get("/health")
-def health_check() -> dict[str, str]:
+async def health_check(session: Annotated[AsyncSession, Depends(get_db_session)]) -> dict[str, str]:
     """
-    Health check endpoint. Used to verify the API is running.
+    Health check endpoint.
+
+    Verifies:
+    - API is running
+    - Database is reachable
+    - Database can write and read data
+
+    Used by load balancers and monitoring systems.
     """
-    return {"status": "healthy"}
+    # Test the database write
+    check = HealthCheck()
+    session.add(check)
+    await session.commit()
+
+    # Test the database read
+    result = await session.execute(select(HealthCheck).order_by(HealthCheck.id.desc()).limit(1))
+    latest = result.scalar_one()
+
+    return {
+        "status": "healthy",
+        "database": "connected",
+        "last_check": latest.checked_at.isoformat(),
+    }
