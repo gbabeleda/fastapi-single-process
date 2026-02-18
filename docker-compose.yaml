@@ -5,6 +5,8 @@ services:
     image: fastapi-single-process:latest
     ports:
       - "8000:8000"
+    environment:
+      - APP_ENVIRONMENT=docker
     env_file:
       - .env
     depends_on:
