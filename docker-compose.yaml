@@ -7,3 +7,17 @@ services:
       - "8000:8000"
     env_file:
       - .env
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:17-alpine
+    env_file:
+      - .env
+    ports:
+      - "5445:5432" # host:container
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
